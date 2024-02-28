@@ -1,0 +1,20 @@
+
+*.obj
+
+*.exe
+
+*.recipe
+
+*.pdb
+
+MatrixTranspose1/Release/HIP clang 5.7/MatrixTranspose1.vcxproj.FileListAbsolute.txt
+
+MatrixTranspose1/Release/HIP clang 5.7/MatrixTranspose1.tlog/
+
+*.log
+
+MatrixTranspose1/Debug/HIP clang 5.7/MatrixTranspose1.vcxproj.FileListAbsolute.txt
+
+*.ilk
+
+MatrixTranspose1/Debug/HIP clang 5.7/MatrixTranspose1.tlog/
