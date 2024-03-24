@@ -14,7 +14,7 @@ struct point
 };
 
 // Display constants
-const double WIN_WIDTH = 1500;
+const double WIN_WIDTH = 2048;
 const double WIN_HEIGHT = 1024;
 const unsigned MAX_COL_VALUE = 0xFF;
 const unsigned COL_RED = 0XFF0000FF;

@@ -15,7 +15,7 @@ int main (int argc, char* argv[])
 	EventHandler runner = EventHandler();
 	MandelGPU mandelGPU;
 
-	mandelGPU.mandelGPU();
+	mandelGPU.mandelGPU2();
 
 	cout << "Event loop started" << std::endl;
 	errHdlr = runner.run();

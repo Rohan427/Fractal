@@ -222,18 +222,30 @@ ErrorHandler EventHandler::run()
 
 							cout << "Plot inital image..." << endl;
 
-							std::thread initial (&Mandel::initPixelData, &fractal, (Uint32)WIN_HEIGHT, (Uint32)WIN_WIDTH, (double)iteration, imageWindow, &mgr);
-
-							if (initial.joinable())
+							if (fractal.USEGPU)
 							{
-								initial.join();
+								std::thread initial (&Mandel::initPixelDataGPU, &fractal, (Uint32)WIN_HEIGHT, (Uint32)WIN_WIDTH, (double)iteration, imageWindow, &mgr);
+
+								if (initial.joinable())
+								{
+									initial.join();
+								}
+
+								std::thread plot1 (&Mandel::iterate4, &fractal, (double)iteration, (Uint32)WIN_HEIGHT, (Uint32)WIN_WIDTH, imageWindow, &mgr);
+
+								if (plot1.joinable())
+								{
+									plot1.join();
+								}
 							}
-
-							std::thread plot1 (&Mandel::iterate3, &fractal, (double)iteration, imageWindow, &mgr);
-
-							if (plot1.joinable())
+							else
 							{
-								plot1.join();
+								std::thread initial (&Mandel::iterate, &fractal, WIN_HEIGHT, WIN_WIDTH, iteration, imageWindow, &mgr);
+
+								if (initial.joinable())
+								{
+									initial.detach();
+								}
 							}
 
 							cout << "Initial image complete" << endl;
@@ -285,6 +297,7 @@ ErrorHandler EventHandler::run()
 
 	imageWindow.getWindow().cleanUp();
 	menu.getWindow().cleanUp();
+	HIP_CHECK (hipHostFree (fractal.hostBuffer));
 	return errHdlr;
 }
 
@@ -338,11 +351,11 @@ void EventHandler::plotImage (MouseManager* mgr, int iteration)
 	imageWindow.resetColor();
 	displayMutex.unlock();
 
-	std::thread plot (&Mandel::iterate3, &fractal, (double)iteration, imageWindow, mgr);
+	std::thread plot (&Mandel::iterate, &fractal, WIN_HEIGHT, WIN_WIDTH, iteration, imageWindow, mgr);
 
-	if (plot.joinable())
+	if (plot.joinable ())
 	{
-		plot.detach();
+		plot.detach ();
 	}
 	// else contine
 
@@ -365,14 +378,14 @@ void EventHandler::plotImageGPU (MouseManager* mgr, int iteration)
 	imageWindow.resetColor();
 	displayMutex.unlock();
 
-	std::thread initial (&Mandel::initPixelData, &fractal, (Uint32)WIN_HEIGHT, (Uint32)WIN_WIDTH, (double)iteration, imageWindow, mgr);
+	std::thread initial (&Mandel::initPixelDataGPU, &fractal, (Uint32)WIN_HEIGHT, (Uint32)WIN_WIDTH, (double)iteration, imageWindow, mgr);
 
 	if (initial.joinable())
 	{
 		initial.join();
 	}
 
-	std::thread plot1 (&Mandel::iterate3, &fractal, (double)iteration, imageWindow, mgr);
+	std::thread plot1 (&Mandel::iterate4, &fractal, (Uint32)WIN_HEIGHT, (Uint32)WIN_WIDTH, (double)iteration, imageWindow, mgr);
 
 	if (plot1.joinable())
 	{
@@ -426,7 +439,15 @@ void EventHandler::handleWindowEvent()
 						switch (mgr.getMode())
 						{
 							case MOUSE_NORM:
-								plotImageGPU (&mgr, iteration);
+								if (fractal.USEGPU)
+								{
+									plotImageGPU (&mgr, iteration);
+								}
+								else
+								{
+									plotImage (&mgr, iteration);
+								}
+
 								break;
 
 							case MOUSE_POINT1:
@@ -480,6 +501,12 @@ void EventHandler::handleWindowEvent()
 							mgr.resetSize ();
 						}
 
+						break;
+
+					case SDLK_g:
+						fractal.USEGPU = !fractal.USEGPU;
+
+						cout << "Use GPU: " << fractal.USEGPU << endl;
 						break;
 
 					case SDLK_KP_PLUS:

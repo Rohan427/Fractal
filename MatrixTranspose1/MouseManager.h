@@ -21,6 +21,7 @@ class MouseManager
 	*
 	* r		Reset image to full set
 	* p		Cycle through color palettes and redraw current image
+	* g		Toggle GPU calculations on/off.
 	*
 	* Resize mode
 	* 1		Mouse movement resizes the rectangle. <Enter> key exits and sets

@@ -5,6 +5,7 @@
 #include "Constants.h"
 #include "Window.h"
 #include "MouseManager.h"
+#include "MandelGPU.h"
 
 class Mandel
 {
@@ -15,6 +16,10 @@ class Mandel
 			Uint8 g;
 			Uint8 b;
 		};
+
+		bool USEGPU = true;
+
+		double* hostBuffer = nullptr;
 
 		typedef std::vector<palettePoint>  colors;
 		std::vector<colors> palettes;
@@ -59,7 +64,7 @@ class Mandel
 
 		std::vector<pixelValue> pixels;
 		std::vector<row> rows;
-		std::vector<gpuPixel> gpuPixels;
+		std::vector<gpuPixel>* gpuPixels;
 
 		// Iterator variables
 		int iteration;
@@ -92,7 +97,7 @@ class Mandel
 
 		int paletteIndex = 0;
 		clParams lastImageData;
-
+		unsigned int hostBuffersz;
 
 		// Methods
 		void debug (std::string msg);
@@ -109,6 +114,7 @@ class Mandel
 		void iterate (Uint32 ImageHeight, Uint32 ImageWidth, double max, Window renderer, MouseManager* mgr);
 		void iterate2();
 		void initPixelData (Uint32 ImageHeight, Uint32 ImageWidth, double max, Window renderer, MouseManager* mgr);
+		void initPixelDataGPU (Uint32 ImageHeight, Uint32 ImageWidth, double max, Window renderer, MouseManager* mgr);
 		void calcLoop (Uint32 ImageWidth, double Re_factor, double Im_factor, double MaxIm, double MinRe, Mandel::gpuPixel curPixel);
 		void createPalettes();
 		double getReFactor();
@@ -124,6 +130,8 @@ class Mandel
 		ErrorHandler replotImage (MouseManager* mgr, Window renderer);
 
 		void testPoint (double max, Mandel::gpuPixel* data);
+		void testPointGPU (double max, double* hostBuffer, int numPixels);
 		clParams simpleColor (Mandel::clParams* params);
 		void iterate3 (double max, Window renderer, MouseManager* mgr);
+		void iterate4 (double max, Uint32 ImageHeight, Uint32 ImageWidth, Window renderer, MouseManager* mgr);
 };

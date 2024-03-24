@@ -306,7 +306,7 @@ Mandel::clParams Mandel::simpleColor (Mandel::clParams* params)
 		*/
 
 		//index = static_cast<int> (floor ((fmod (params.n, params.cycles) / params.palette->size()) * (params.palette->size() - 1)));
-		f = modf ((double)((params->max / params->palette->size ()) * (params->n / params->max)), &i);
+		f = modf ((double)((params->max / params->palette->size()) * (params->n / params->max)), &i);
 		f = modf (f * params->palette->size(), &i);
 		index = (int)i;
 
@@ -422,6 +422,43 @@ void Mandel::testPoint (double max, Mandel::gpuPixel* data)
 	//cout << "Mandel::testpoint: x " << data->x << ", y " << data->y << " END" << endl;
 }
 
+void Mandel::testPointGPU (double max, double* hostBuffer, int numPixels)
+{
+	Mandel::gpuPixel* data;
+	int pixel = 0;
+
+	do
+	{
+		data = (Mandel::gpuPixel *)&hostBuffer[pixel];
+		cout << "Mandel::testpointGPU: x " << data->x << ", y " << data->y <<  " begin" << endl;
+		int count = 0;
+		double Z_re2;
+		double Z_im2;
+		double Z_re = data->c_re, Z_im = data->c_im;
+
+		// TODO: Refactor to remove breaks?
+		for (; count <= max; ++count)
+		{
+			Z_re2 = Z_re * Z_re;
+			Z_im2 = Z_im * Z_im;
+
+			if (Z_re2 + Z_im2 > 4)
+			{ // Here if not in the set
+				break;
+			}
+
+			Z_im = 2 * Z_re * Z_im + data->c_im;
+			Z_re = Z_re2 - Z_im2 + data->c_re;
+		}
+
+		data->n = count;
+
+		pixel += 5;
+	} while (pixel < (numPixels * 5));
+
+	//cout << "Mandel::testpoint: x " << data->x << ", y " << data->y << " END" << endl;
+}
+
 void Mandel::iterate (Uint32 ImageHeight, Uint32 ImageWidth, double max, Window renderer, MouseManager* mgr)//, EventHandler callback)
 {
 	clParams calcdata;
@@ -506,12 +543,51 @@ void Mandel::iterate (Uint32 ImageHeight, Uint32 ImageWidth, double max, Window 
 	mgr->setMode (MOUSE_NORM);
 }
 
+void Mandel::initPixelDataGPU (Uint32 ImageHeight, Uint32 ImageWidth, double max, Window renderer, MouseManager* mgr)
+{
+	// Pixel buffer
+	hostBuffersz = (ImageHeight * ImageWidth) * sizeof (gpuPixel);
+	gpuPixel nextPixel;
+	MandelGPU gpuUtils;
+	int managed_memory = 1;
+	int i = 0;
+
+	//HIP_CHECK (hipDeviceGetAttribute (&managed_memory,
+	//								 hipDeviceAttributeManagedMemory, p_gpuDevice));
+
+	if (!managed_memory)
+	{
+		//printf ("info: managed memory access not supported on the device %d\n Skipped\n", p_gpuDevice);
+		cout << "Managed memory access not supported" << endl;
+	}
+	else
+	{
+		HIP_CHECK (hipHostMalloc (&hostBuffer, hostBuffersz));
+		gpuUtils.mandelGPU (ImageWidth, ImageHeight, curBounds.Re_factor, curBounds.Im_factor, curBounds.MaxIm, curBounds.MinRe, hostBuffer);
+
+
+		//do
+		//{
+		//	printf ("Pixel at: %p\n", &hostBuffer[i]);
+		//	cout << "Pixel x: " << hostBuffer[i] << endl;
+		//	cout << "Pixel y: " << hostBuffer[i + 1] << endl;
+		//	cout << "Pixel n: " << hostBuffer[i + 2] << endl;
+		//	cout << "Pixel c_im: " << hostBuffer[i + 3] << endl;
+		//	cout << "Pixel c_re: " << hostBuffer[i + 4] << endl;
+
+		//	i += 5;
+		//} while (i < (10290));
+
+		cout << "GPU init complete" << endl;
+	}
+}
+
 void Mandel::initPixelData (Uint32 ImageHeight, Uint32 ImageWidth, double max, Window renderer, MouseManager* mgr)//, EventHandler callback)
 {
 	cout << "In Mandel::initPixelData" << endl;
 
 	pixelM.lock();
-	gpuPixels.clear();
+	gpuPixels->clear();
 	pixelM.unlock();
 
 	gpuPixel curPixel;
@@ -549,7 +625,7 @@ void Mandel::initPixelData (Uint32 ImageHeight, Uint32 ImageWidth, double max, W
 		}
 	}
 
-	std::cout << "Total Pixels: " << gpuPixels.size() << std::endl;
+	std::cout << "Total Pixels: " << gpuPixels->size() << std::endl;
 }
 
 void Mandel::iterate3 (double max, Window renderer, MouseManager* mgr)
@@ -571,7 +647,7 @@ void Mandel::iterate3 (double max, Window renderer, MouseManager* mgr)
 	calcdata.rows = &rows;
 	calcdata.cycles = floor (max / (calcdata.palette->size() - 1));
 	calcdata.renderer = &renderer;
-	int pixVectSize = gpuPixels.size();
+	int pixVectSize = gpuPixels->size();
 	int j = 0;
 	Mandel::pixelValue pixel;
 	int maxThreads = (availableThreads <= 0) ? 1 : availableThreads - 2;
@@ -589,7 +665,7 @@ void Mandel::iterate3 (double max, Window renderer, MouseManager* mgr)
 			for (i = 0; i < maxThreads; ++i)
 			{
 				//cout << "testpoint " << j << endl;
-				threads.push_back (std::thread (&Mandel::testPoint, this, max, &(gpuPixels.at (j))));
+				threads.push_back (std::thread (&Mandel::testPoint, this, max, &(gpuPixels->at (j))));
 				++j;
 			}
 		}
@@ -598,7 +674,7 @@ void Mandel::iterate3 (double max, Window renderer, MouseManager* mgr)
 			for (i = 0; i < (pixVectSize - j); ++i)
 			{
 				//cout << "testpoint " << j << endl;
-				threads.push_back (std::thread (&Mandel::testPoint, this, max, &(gpuPixels.at (j))));
+				threads.push_back (std::thread (&Mandel::testPoint, this, max, &(gpuPixels->at (j))));
 				++j;
 			}
 		}
@@ -612,10 +688,10 @@ void Mandel::iterate3 (double max, Window renderer, MouseManager* mgr)
 
 	do
 	{
-		calcdata.x = (double)gpuPixels.at (i).x;
-		calcdata.y = (double)gpuPixels.at (i).y;
-		calcdata.n = gpuPixels.at (i).n;
-		calcdata.n4 = gpuPixels.at (i).n;
+		calcdata.x = (double)gpuPixels->at (i).x;
+		calcdata.y = (double)gpuPixels->at (i).y;
+		calcdata.n = gpuPixels->at (i).n;
+		calcdata.n4 = gpuPixels->at (i).n;
 
 		pixel.n = calcdata.n;
 		pixel.x = calcdata.x;
@@ -640,12 +716,111 @@ void Mandel::iterate3 (double max, Window renderer, MouseManager* mgr)
 		// else continue
 
 		i++;
-	} while (i < gpuPixels.size());
+	} while (i < gpuPixels->size());
 
 	lastImageData = calcdata;
 	mgr->setMode (MOUSE_NORM);
 
 	std::cout << "Mandel::iterate3 END" << std::endl;
+}
+
+void Mandel::iterate4 (double max, Uint32 ImageHeight, Uint32 ImageWidth, Window renderer, MouseManager* mgr)
+{
+	cout << "In Mandel::iterate4" << endl;
+
+	unsigned i = 0;
+	MandelGPU gpuUtils;
+	clParams calcdata;
+	calcdata.red = 0;
+	calcdata.green = 0x00;
+	calcdata.blue = 0x00;
+
+	pixels.clear();
+
+	calcdata.max = max;
+	calcdata.palette = curPalette;
+	calcdata.pixels = &pixels;
+	calcdata.rows = &rows;
+	calcdata.cycles = floor (max / (calcdata.palette->size() - 1));
+	calcdata.renderer = &renderer;
+	Mandel::pixelValue pixel;
+
+	gpuUtils.testPoints (hostBuffer, max, ImageWidth * ImageHeight);
+
+	/*do
+	{
+		printf ("Pixel at: %p\n", &hostBuffer[i]);
+		cout << "Pixel x: " << hostBuffer[i] << endl;
+		cout << "Pixel y: " << hostBuffer[i + 1] << endl;
+		cout << "Pixel n: " << hostBuffer[i + 2] << endl;
+		cout << "Pixel c_im: " << hostBuffer[i + 3] << endl;
+		cout << "Pixel c_re: " << hostBuffer[i + 4] << endl;
+
+		i += 5;
+	} while (i < (10290));
+
+	cout << "Render points..." << endl;
+	cout << "Total Pixels: " << hostBuffersz << endl;*/
+
+	i = 0;
+	int j = 0;
+	int inSet = 0;
+	int notSet = 0;
+	int index = 0;
+
+	do
+	{
+		index = i * 5;
+		calcdata.x = hostBuffer[index];
+		calcdata.y = hostBuffer[index + 1];
+		calcdata.n = hostBuffer[index + 2];
+		calcdata.n4 = hostBuffer[index + 2];
+
+		pixel.n = calcdata.n;
+		pixel.x = calcdata.x;
+		pixel.y = calcdata.y;
+
+		pixelM.lock();
+		calcdata.pixels->push_back (pixel);
+		pixelM.unlock();
+
+		calcdata = simpleColor (&calcdata);
+#if DEBUG
+		printf ("Plotting RGBA:\n    x: %4.0f\n    y: %4.0f\n    %#x %#x %#x %#x\n\n", calcdata.x, calcdata.y, calcdata.red, calcdata.green, calcdata.blue, MAX_COL_VALUE);
+#endif
+		displayMutex.lock();
+		calcdata.status = renderer.plotPoint (calcdata.x, calcdata.y, calcdata.red, calcdata.green, calcdata.blue, MAX_COL_VALUE);
+		displayMutex.unlock ();
+
+		if (calcdata.status.getStatus () != ERR_SUCCESS)
+		{
+			std::cout << "ERROR: " << calcdata.status.getMsg () << std::endl;
+		}
+		// else continue
+
+		i++;
+
+//		cout << "Pixel " << i << endl;
+//		cout << "Index " << index << endl;
+
+		//if (pixel.n >= max)
+		//{
+		//	cout << "Pixel.n " << pixel.n << endl;
+		//	inSet++;
+		//}
+		//else
+		//{
+		//	notSet++;
+		//}
+	} while (index < ((hostBuffersz / 8) - (sizeof (gpuPixel))));
+
+	/*cout << "Pixels in set:     " << inSet << endl;
+	cout << "Pixels NOT in set: " << notSet << endl;*/
+
+	lastImageData = calcdata;
+	mgr->setMode (MOUSE_NORM);
+
+	std::cout << "Mandel::iterate4 END" << std::endl;
 }
 
 void Mandel::calcLoop (Uint32 ImageWidth, double Re_factor, double Im_factor, double MaxIm, double MinRe, Mandel::gpuPixel curPixel)
@@ -659,7 +834,7 @@ void Mandel::calcLoop (Uint32 ImageWidth, double Re_factor, double Im_factor, do
 	{
 		curPixel.c_re = MinRe + curPixel.x * Re_factor;
 		pixelM.lock();
-		gpuPixels.push_back (curPixel);
+		gpuPixels->push_back (curPixel);
 		pixelM.unlock();
 
 		//std::cout << "Pixel:" << endl;
