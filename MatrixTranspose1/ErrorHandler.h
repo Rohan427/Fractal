@@ -11,9 +11,9 @@ class ErrorHandler
 
 	public:
 	void setErrorData (int status, std::string msg, std::string detail, int lrendStatus);
-	int getStatus ();
-	std::string getMsg ();
-	std::string getDetail ();
+	int getStatus();
+	std::string getMsg();
+	std::string getDetail();
 	void setRendStatus (int status);
-	int getRenderStatus ();
+	int getRenderStatus();
 };

@@ -8,6 +8,7 @@
 
 #define DEBUG false
 #define DETAIL false
+#define GPUDEBUG false
 
 using namespace std;
 
@@ -122,8 +123,8 @@ class Calc
 			*/
 
 			//index = static_cast<int> (floor ((fmod (params.n, params.cycles) / params.palette->size()) * (params.palette->size() - 1)));
-			f = modf ((double)((params.max / params.palette->size ()) * (params.n / params.max)), &i);
-			f = modf (f * params.palette->size (), &i);
+			f = modf ((double)((params.max / params.palette->size()) * (params.n / params.max)), &i);
+			f = modf (f * params.palette->size(), &i);
 			index = (int)i;
 
 #if DEBUG
@@ -136,22 +137,22 @@ class Calc
 			std::cout << " index: " << index << std::endl;
 #endif
 
-			pixelM.lock ();
+			pixelM.lock();
 			newColor.red = newColor.palette->at (index).r;
 			newColor.green = newColor.palette->at (index).g;
 			newColor.blue = newColor.palette->at (index).b;
-			pixelM.unlock ();
+			pixelM.unlock();
 #if DEBUG
 			printf ("RBG: 0x%x, 0x%x, 0x%x\n\n", newColor.red, newColor.green, newColor.blue);
 #endif
 		}
 		else
 		{ // In the set, color black
-			pixelM.lock ();
+			pixelM.lock();
 			newColor.red = COL_BLACK;
 			newColor.green = COL_BLACK;
 			newColor.blue = COL_BLACK;
-			pixelM.unlock ();
+			pixelM.unlock();
 		}
 
 		return newColor;
@@ -228,19 +229,19 @@ class Calc
 			pixel.x = data.x;
 			pixel.y = data.y;
 
-			pixelM.lock ();
+			pixelM.lock();
 			data.pixels->push_back (pixel);
-			pixelM.unlock ();
+			pixelM.unlock();
 
 			data = simpleColor (data);
 #if DEBUG
 			printf ("Plotting RGBA: 0x%x 0c%x 0x%x 0x%x\n", data.red, data.green, data.blue, MAX_COL_VALUE);
 #endif
-			displayMutex.lock ();
+			displayMutex.lock();
 			status = renderer.plotPoint (data.x, data.y, data.red, data.green, data.blue, MAX_COL_VALUE);
-			displayMutex.unlock ();
+			displayMutex.unlock();
 
-			if (status.getStatus () != ERR_SUCCESS)
+			if (status.getStatus() != ERR_SUCCESS)
 			{
 				return status;
 			}
@@ -262,9 +263,9 @@ class Calc
 
 		data = simpleColor (data);
 
-		displayMutex.lock ();
+		displayMutex.lock();
 		status = renderer.plotPoint (data.x, data.y, data.red, data.green, data.blue, MAX_COL_VALUE);
-		displayMutex.unlock ();
+		displayMutex.unlock();
 
 		//cout << "End replot" << endl;
 
@@ -312,6 +313,70 @@ Mandel::clParams Mandel::simpleColor (Mandel::clParams* params)
 
 #if DEBUG
 		std::cout << "Colors: " << params->palette->size() << "\n";
+		std::cout << "Cycles: " << params->cycles << "\n";
+		std::cout << "   Max: " << params->max << "\n";
+		std::cout << "  Iter: " << params->n << "\n";
+		std::cout << "     f: " << f << "\n";
+		std::cout << "     i: " << i << "\n";
+		std::cout << " index: " << index << std::endl;
+#endif
+
+		pixelM.lock();
+		newColor.red = newColor.palette->at (index).r;
+		newColor.green = newColor.palette->at (index).g;
+		newColor.blue = newColor.palette->at (index).b;
+		pixelM.unlock();
+#if DEBUG
+		printf ("RBG: 0x%x, 0x%x, 0x%x\n\n", newColor.red, newColor.green, newColor.blue);
+#endif
+	}
+	else
+	{ // In the set, color black
+		pixelM.lock();
+		newColor.red = COL_BLACK;
+		newColor.green = COL_BLACK;
+		newColor.blue = COL_BLACK;
+		pixelM.unlock();
+	}
+
+	return newColor;
+}
+
+Mandel::gpuclParams Mandel::gpuColor (Mandel::gpuclParams* params)
+{
+	Mandel::gpuclParams newColor = *params;
+	int index = 0;
+	double f;
+	double i;
+
+	if (params->n < params->max)
+	{
+		/*
+		* m = max iterations
+		* n = number of iterations
+		* y = percent max iterations for pixel
+		* c = colors per palette
+		* d = palettes per max iterations
+		* t = total colors for pixel
+		* p = total d for the pixel
+		* i = index
+		*
+		* d = m/c
+		* y = n/m
+		* p = y * d		= (n/m) * (m/c)
+		* t = p * c     = c((n/m) * (m/c))
+		* i = mod (t/c) = mod ((c((n/m) * (m/c)))/c)
+		*
+		* modf (((m/c) * (n/m)) * c, &index)
+		*/
+
+		//index = static_cast<int> (floor ((fmod (params.n, params.cycles) / params.palette->size()) * (params.palette->size() - 1)));
+		f = modf ((double)((params->max / params->palette->size()) * (params->n / params->max)), &i);
+		f = modf (f * params->palette->size(), &i);
+		index = (int)i;
+
+#if DEBUG
+		std::cout << "Colors: " << params->palette->size () << "\n";
 		std::cout << "Cycles: " << params->cycles << "\n";
 		std::cout << "   Max: " << params->max << "\n";
 		std::cout << "  Iter: " << params->n << "\n";
@@ -468,7 +533,7 @@ void Mandel::iterate (Uint32 ImageHeight, Uint32 ImageWidth, double max, Window 
 	Calc calc;
 	Uint32 y = 0;
 
-	pixels.clear ();
+	pixels.clear();
 
 	calcdata.max = max;
 	calcdata.palette = curPalette;
@@ -546,7 +611,6 @@ void Mandel::iterate (Uint32 ImageHeight, Uint32 ImageWidth, double max, Window 
 void Mandel::initPixelDataGPU (Uint32 ImageHeight, Uint32 ImageWidth, double max, Window renderer, MouseManager* mgr)
 {
 	// Pixel buffer
-	hostBuffersz = (ImageHeight * ImageWidth) * sizeof (gpuPixel);
 	gpuPixel nextPixel;
 	MandelGPU gpuUtils;
 	int managed_memory = 1;
@@ -562,23 +626,29 @@ void Mandel::initPixelDataGPU (Uint32 ImageHeight, Uint32 ImageWidth, double max
 	}
 	else
 	{
-		HIP_CHECK (hipHostMalloc (&hostBuffer, hostBuffersz));
+		/*if (hostBuffer == nullptr)
+		{
+			HIP_CHECK (hipHostMalloc (&hostBuffer, hostBuffersz));
+		}*/
+		// else buffer already allocated so do nothing
+
 		gpuUtils.mandelGPU (ImageWidth, ImageHeight, curBounds.Re_factor, curBounds.Im_factor, curBounds.MaxIm, curBounds.MinRe, hostBuffer);
 
+#if GPUDEBUG
+		do
+		{
+			printf ("Pixel at: %p\n", &hostBuffer[i]);
+			cout << "Pixel x: " << hostBuffer[i] << endl;
+			cout << "Pixel y: " << hostBuffer[i + 1] << endl;
+			cout << "Pixel n: " << hostBuffer[i + 2] << endl;
+			cout << "Pixel c_im: " << hostBuffer[i + 3] << endl;
+			cout << "Pixel c_re: " << hostBuffer[i + 4] << endl;
 
-		//do
-		//{
-		//	printf ("Pixel at: %p\n", &hostBuffer[i]);
-		//	cout << "Pixel x: " << hostBuffer[i] << endl;
-		//	cout << "Pixel y: " << hostBuffer[i + 1] << endl;
-		//	cout << "Pixel n: " << hostBuffer[i + 2] << endl;
-		//	cout << "Pixel c_im: " << hostBuffer[i + 3] << endl;
-		//	cout << "Pixel c_re: " << hostBuffer[i + 4] << endl;
-
-		//	i += 5;
-		//} while (i < (10290));
+			i += 5;
+		} while (i < (10290));
 
 		cout << "GPU init complete" << endl;
+#endif
 	}
 }
 
@@ -726,9 +796,10 @@ void Mandel::iterate3 (double max, Window renderer, MouseManager* mgr)
 
 void Mandel::iterate4 (double max, Uint32 ImageHeight, Uint32 ImageWidth, Window renderer, MouseManager* mgr)
 {
+#if GPUDEBUG
 	cout << "In Mandel::iterate4" << endl;
+#endif
 
-	unsigned i = 0;
 	MandelGPU gpuUtils;
 	clParams calcdata;
 	calcdata.red = 0;
@@ -740,14 +811,16 @@ void Mandel::iterate4 (double max, Uint32 ImageHeight, Uint32 ImageWidth, Window
 	calcdata.max = max;
 	calcdata.palette = curPalette;
 	calcdata.pixels = &pixels;
-	calcdata.rows = &rows;
-	calcdata.cycles = floor (max / (calcdata.palette->size() - 1));
 	calcdata.renderer = &renderer;
 	Mandel::pixelValue pixel;
+	int numPixels = ImageWidth * ImageHeight;
 
-	gpuUtils.testPoints (hostBuffer, max, ImageWidth * ImageHeight);
+	gpuUtils.testPoints (hostBuffer, max, numPixels);
+	gpuUtils.calcColors (hostBuffer, pixelBuffer, gpuPalette, curPalette->size(), max, numPixels);
 
-	/*do
+/*
+#if GPUDEBUG
+	do
 	{
 		printf ("Pixel at: %p\n", &hostBuffer[i]);
 		cout << "Pixel x: " << hostBuffer[i] << endl;
@@ -760,67 +833,26 @@ void Mandel::iterate4 (double max, Uint32 ImageHeight, Uint32 ImageWidth, Window
 	} while (i < (10290));
 
 	cout << "Render points..." << endl;
-	cout << "Total Pixels: " << hostBuffersz << endl;*/
-
-	i = 0;
-	int j = 0;
-	int inSet = 0;
-	int notSet = 0;
-	int index = 0;
-
-	do
-	{
-		index = i * 5;
-		calcdata.x = hostBuffer[index];
-		calcdata.y = hostBuffer[index + 1];
-		calcdata.n = hostBuffer[index + 2];
-		calcdata.n4 = hostBuffer[index + 2];
-
-		pixel.n = calcdata.n;
-		pixel.x = calcdata.x;
-		pixel.y = calcdata.y;
-
-		pixelM.lock();
-		calcdata.pixels->push_back (pixel);
-		pixelM.unlock();
-
-		calcdata = simpleColor (&calcdata);
-#if DEBUG
-		printf ("Plotting RGBA:\n    x: %4.0f\n    y: %4.0f\n    %#x %#x %#x %#x\n\n", calcdata.x, calcdata.y, calcdata.red, calcdata.green, calcdata.blue, MAX_COL_VALUE);
+	cout << "Total Pixels: " << hostBuffersz << endl;
 #endif
-		displayMutex.lock();
-		calcdata.status = renderer.plotPoint (calcdata.x, calcdata.y, calcdata.red, calcdata.green, calcdata.blue, MAX_COL_VALUE);
-		displayMutex.unlock ();
+*/
 
-		if (calcdata.status.getStatus () != ERR_SUCCESS)
-		{
-			std::cout << "ERROR: " << calcdata.status.getMsg () << std::endl;
-		}
-		// else continue
+	displayMutex.lock();
+	calcStatus = renderer.updateFrame (pixelBuffer);
+	displayMutex.unlock();
 
-		i++;
-
-//		cout << "Pixel " << i << endl;
-//		cout << "Index " << index << endl;
-
-		//if (pixel.n >= max)
-		//{
-		//	cout << "Pixel.n " << pixel.n << endl;
-		//	inSet++;
-		//}
-		//else
-		//{
-		//	notSet++;
-		//}
-	} while (index < ((hostBuffersz / 8) - (sizeof (gpuPixel))));
-
-	/*cout << "Pixels in set:     " << inSet << endl;
-	cout << "Pixels NOT in set: " << notSet << endl;*/
+	if (calcStatus.getStatus () == ERR_SUCCESS)
+	{
+		cout << "Failed to update frame: " << calcStatus.getMsg () << endl;
+	}
+	// else do nothing
 
 	lastImageData = calcdata;
 	mgr->setMode (MOUSE_NORM);
 
+#if GPUDEBUG
 	std::cout << "Mandel::iterate4 END" << std::endl;
+#endif
 }
 
 void Mandel::calcLoop (Uint32 ImageWidth, double Re_factor, double Im_factor, double MaxIm, double MinRe, Mandel::gpuPixel curPixel)
@@ -1248,6 +1280,7 @@ void Mandel::cylePaletteUp()
 	}
 
 	curPalette = &palettes.at (paletteIndex);
+	updateGPUPalette();
 	showPalette (paletteIndex);
 }
 
@@ -1263,6 +1296,7 @@ void Mandel::cylePaletteDn()
 	}
 
 	curPalette = &palettes.at (paletteIndex);
+	updateGPUPalette();
 	showPalette (paletteIndex);
 }
 
@@ -1288,13 +1322,30 @@ ErrorHandler Mandel::replotImage (MouseManager* mgr, Window renderer)
 	return calcStatus;
 }
 
+ErrorHandler Mandel::replotImageGPU (MouseManager* mgr, Window renderer)
+{
+	ErrorHandler err;
+	MandelGPU gpuUtils;
+	int numPixels = renderer.getHeight() * renderer.getWidth();
+
+	gpuUtils.calcColors (hostBuffer, pixelBuffer, gpuPalette, curPalette->size(), m_max, numPixels);
+
+	displayMutex.lock();
+	err = renderer.updateFrame (pixelBuffer);
+	displayMutex.unlock();
+
+	mgr->setMode (MOUSE_NORM);
+
+	return err;
+}
+
 void Mandel::showPalette (int index)
 {
 	std::cout << "Using Palette " << paletteName[index] << std::endl;
-	std::cout << "size: actual, selected " << palettes.at (paletteIndex).size() << ", " << lastImageData.palette->size () << std::endl;
+	std::cout << "size: actual, selected " << palettes.at (paletteIndex).size() << ", " << lastImageData.palette->size() << std::endl;
 }
 
-ErrorHandler Mandel::drawImage ()
+ErrorHandler Mandel::drawImage()
 {
 	return calcStatus;
 }
@@ -1306,13 +1357,71 @@ void Mandel::loadPalette (int index)
 	{
 		paletteIndex = index;
 		curPalette = &palettes.at (paletteIndex);
+
+		// TODO: Check if GPU in use
+		updateGPUPalette();
 	}
 	// else ignore - out of range
 }
+
 
 void Mandel::debug (std::string msg)
 {
 #if DEBUG
 	std::cout << msg;
+#endif
+}
+
+void Mandel::createBuffers (Uint32 height, Uint32 width)
+{
+	hostBuffersz = (height * width) * sizeof (gpuPixel);
+	pixelBufferz = (height * width) * sizeof (Uint32);
+
+	HIP_CHECK (hipHostMalloc (&hostBuffer, hostBuffersz));
+	HIP_CHECK (hipHostMalloc (&pixelBuffer, pixelBufferz));
+}
+
+void Mandel::freeBuffers()
+{
+	HIP_CHECK (hipHostFree (hostBuffer));
+	HIP_CHECK (hipHostFree (pixelBuffer));
+	HIP_CHECK (hipHostFree (gpuPalette));
+
+	hostBuffer = nullptr;
+	pixelBuffer = nullptr;
+	gpuPalette = nullptr;
+}
+
+void Mandel::updateGPUPalette()
+{
+#if GPUDEBUG
+	std::cout << "Reload GPU palette" << endl;
+#endif
+
+	gpuPalettez = curPalette->size() * sizeof (palettePoint);
+
+	if (gpuPalette != nullptr)
+	{
+#if GPUDEBUG
+		cout << "Free current palette" << endl;
+#endif
+		HIP_CHECK (hipHostFree (gpuPalette));
+		gpuPalette = nullptr;
+	}
+	// else do nothing, pointer is already null
+
+	// Allocate shared GPU memory for the palette
+	HIP_CHECK (hipHostMalloc (&gpuPalette, gpuPalettez));
+
+	// Copy the palette data to shared memory
+	for (int i = 0; i < curPalette->size(); i++)
+	{
+		gpuPalette[i] = curPalette->at (i).r;
+		gpuPalette[i + 1] = curPalette->at (i).g;
+		gpuPalette[i + 2] = curPalette->at (i).b;
+	}
+
+#if GPUDEBUG
+	std::cout << "GPU palette reloaded" << endl;
 #endif
 }

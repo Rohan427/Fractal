@@ -19,8 +19,6 @@ class Mandel
 
 		bool USEGPU = true;
 
-		double* hostBuffer = nullptr;
-
 		typedef std::vector<palettePoint>  colors;
 		std::vector<colors> palettes;
 
@@ -53,6 +51,22 @@ class Mandel
 			Window* renderer;
 		};
 
+		struct gpuclParams
+		{
+			double x = 0;			// x coordinate
+			double y = 0;			// y coordinate
+			double n = 0;			// Iteration count
+			double max = 0.0;		// Max number of iterations
+			Uint32 red = 0x00;		// Red color seed
+			Uint32 green = 0x77;	// Green color seed
+			Uint32 blue = 0x77;		// Blue color seed
+			ErrorHandler status;	// Status
+			colors* palette;
+			std::vector<pixelValue>* pixels;
+			std::vector<row>* rows;
+			Window* renderer;
+		};
+
 		struct gpuPixel
 		{
 			double x;
@@ -72,6 +86,7 @@ class Mandel
 		MouseManager* mgr;
 		int height;
 		int width;
+		double m_max = INITIALITERATION;
 
 	private:
 		// Current fractal bounds
@@ -98,6 +113,12 @@ class Mandel
 		int paletteIndex = 0;
 		clParams lastImageData;
 		unsigned int hostBuffersz;
+		double* hostBuffer = nullptr;
+		Uint32 pixelBufferz;
+		Uint32* pixelBuffer = nullptr;
+		unsigned int gpuPalettez;
+		Uint8* gpuPalette;
+
 
 		// Methods
 		void debug (std::string msg);
@@ -134,4 +155,9 @@ class Mandel
 		clParams simpleColor (Mandel::clParams* params);
 		void iterate3 (double max, Window renderer, MouseManager* mgr);
 		void iterate4 (double max, Uint32 ImageHeight, Uint32 ImageWidth, Window renderer, MouseManager* mgr);
+		gpuclParams gpuColor (gpuclParams* params);
+		void createBuffers (Uint32 height, Uint32 width);
+		void freeBuffers();
+		void updateGPUPalette();
+		ErrorHandler replotImageGPU (MouseManager* mgr, Window renderer);
 };

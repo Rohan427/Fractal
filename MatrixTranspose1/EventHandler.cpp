@@ -124,6 +124,7 @@ ErrorHandler EventHandler::run()
 	// Create the menu window
 	else
 	{
+		std::cout << "Starting Mandelbrot..." << std::endl;
 		displayMutex.lock();
 		errHdlr = menu.createWindow (MEN_WIDTH, MEN_HEIGHT);
 		displayMutex.unlock();
@@ -131,11 +132,11 @@ ErrorHandler EventHandler::run()
 		if (status != ERR_SUCCESS)
 		{
 			std::cout << "Failed to initialize menu window: "
-				<< "Message: "
-				<< errHdlr.getMsg()
-				<< ", Detail: "
-				<< errHdlr.getDetail()
-				<< std::endl;
+				  	  << "Message: "
+					  << errHdlr.getMsg()
+					  << ", Detail: "
+					  << errHdlr.getDetail()
+					  << std::endl;
 		}
 		// Create the menu renderer
 		else
@@ -147,11 +148,11 @@ ErrorHandler EventHandler::run()
 			if (errHdlr.getStatus() != ERR_SUCCESS)
 			{
 				std::cout << "Menu renderer failed: "
-					<< "Message: "
-					<< errHdlr.getMsg()
-					<< ", Detail: "
-					<< errHdlr.getDetail()
-					<< std::endl;
+						  << "Message: "
+						  << errHdlr.getMsg()
+						  << ", Detail: "
+						  << errHdlr.getDetail()
+						  << std::endl;
 			}
 			// Create the image window
 			else
@@ -170,11 +171,11 @@ ErrorHandler EventHandler::run()
 				if (errHdlr.getStatus() != ERR_SUCCESS)
 				{
 					std::cout << "Failed to create image window: "
-						<< "Message: "
-						<< errHdlr.getMsg()
-						<< ", Detail: "
-						<< errHdlr.getDetail()
-						<< std::endl;
+							  << "Message: "
+							  << errHdlr.getMsg()
+							  << ", Detail: "
+							  << errHdlr.getDetail()
+							  << std::endl;
 				}
 				// Create the image renderer
 				else
@@ -188,11 +189,11 @@ ErrorHandler EventHandler::run()
 					if (errHdlr.getStatus() != ERR_SUCCESS)
 					{
 						std::cout << "Image renderer failed: "
-							<< "Message: "
-							<< errHdlr.getMsg()
-							<< ", Detail: "
-							<< errHdlr.getDetail()
-							<< std::endl;
+								  << "Message: "
+								  << errHdlr.getMsg()
+								  << ", Detail: "
+								  << errHdlr.getDetail()
+								  << std::endl;
 					}
 					else
 					{
@@ -211,6 +212,9 @@ ErrorHandler EventHandler::run()
 						else*/
 						{
 							std::cout << "Initial Image..." << std::endl;
+
+							// Create buffers in fractal class for pixles and GPU calculations, if possible
+							fractal.createBuffers (imageWindow.getHeight(), imageWindow.getWidth());
 
 							mgr.setMode (MOUSE_RENDER);
 
@@ -297,7 +301,7 @@ ErrorHandler EventHandler::run()
 
 	imageWindow.getWindow().cleanUp();
 	menu.getWindow().cleanUp();
-	HIP_CHECK (hipHostFree (fractal.hostBuffer));
+	fractal.freeBuffers();
 	return errHdlr;
 }
 
@@ -305,8 +309,8 @@ void EventHandler::rectangle()
 {
 	int length;
 	int width;
-	int startx = mgr.getRectangle ().startX;
-	int starty = mgr.getRectangle ().startY;
+	int startx = mgr.getRectangle().startX;
+	int starty = mgr.getRectangle().startY;
 
 	// Adjust length and start based on which X user selected first
 	if (mgr.getRectangle().startX > mgr.getRectangle().endX)
@@ -332,7 +336,7 @@ void EventHandler::rectangle()
 
 	displayMutex.lock();
 	imageWindow.drawRectangle (startx, starty, length, width, mgr.getRectColor());
-	displayMutex.unlock ();
+	displayMutex.unlock();
 }
 
 void EventHandler::plotImage (MouseManager* mgr, int iteration)
@@ -353,9 +357,9 @@ void EventHandler::plotImage (MouseManager* mgr, int iteration)
 
 	std::thread plot (&Mandel::iterate, &fractal, WIN_HEIGHT, WIN_WIDTH, iteration, imageWindow, mgr);
 
-	if (plot.joinable ())
+	if (plot.joinable())
 	{
-		plot.detach ();
+		plot.detach();
 	}
 	// else contine
 
@@ -371,7 +375,7 @@ void EventHandler::plotImageGPU (MouseManager* mgr, int iteration)
 							   mgr->getRectangle().startY,
 							   mgr->getRectangle().length,
 							   mgr->getRectangle().width
-	);
+							  );
 
 	// Plot the image
 	displayMutex.lock();
@@ -400,18 +404,25 @@ void EventHandler::replotImage (MouseManager* mgr)
 {
 	setMode2 (mgr, MOUSE_RENDER);
 
-	// Plot the image
-	displayMutex.lock();
-	imageWindow.resetColor();
-	displayMutex.unlock();
-
-	std::thread replot (&Mandel::replotImage, &fractal, mgr, imageWindow);
-
-	if (replot.joinable())
+	if (fractal.USEGPU)
 	{
-		replot.detach();
+		fractal.replotImageGPU (mgr, imageWindow);
 	}
-	// else continue
+	else
+	{
+		// Plot the image
+		displayMutex.lock();
+		imageWindow.resetColor();
+		displayMutex.unlock();
+
+		std::thread replot (&Mandel::replotImage, &fractal, mgr, imageWindow);
+
+		if (replot.joinable())
+		{
+			replot.detach();
+		}
+		// else continue
+	}
 
 	mgr->resetSize();
 }
@@ -483,7 +494,7 @@ void EventHandler::handleWindowEvent()
 							// Plot the image
 							displayMutex.lock();
 							imageWindow.clear (IMAGERESET);
-							displayMutex.unlock ();
+							displayMutex.unlock();
 
 							setMode (MOUSE_RENDER);
 
@@ -498,7 +509,7 @@ void EventHandler::handleWindowEvent()
 							}
 							// else continue
 
-							mgr.resetSize ();
+							mgr.resetSize();
 						}
 
 						break;
@@ -523,7 +534,7 @@ void EventHandler::handleWindowEvent()
 					case SDLK_KP_MINUS:
 						if ((mgr.getMode() == MOUSE_NORM)
 							|| (mgr.getMode() == MOUSE_PALETTE)
-							)
+						   )
 						{
 							setMode (MOUSE_PALETTE);
 							fractal.cylePaletteDn();
@@ -534,7 +545,7 @@ void EventHandler::handleWindowEvent()
 					case SDLK_KP_PERIOD:
 						if ((mgr.getMode() == MOUSE_NORM)
 							|| (mgr.getMode() == MOUSE_PALETTE)
-							)
+						   )
 						{
 							setMode (MOUSE_PALETTE);
 							fractal.loadPalette (0);
@@ -577,7 +588,7 @@ void EventHandler::handleWindowEvent()
 						point mousePos;
 
 						displayMutex.lock();
-						mousePos = imageWindow.getMousePos ();
+						mousePos = imageWindow.getMousePos();
 						displayMutex.unlock();
 
 						mgr.setRectPoint1 (mousePos.x, mousePos.y);
@@ -591,7 +602,7 @@ void EventHandler::handleWindowEvent()
 						point mousePos;
 
 						displayMutex.lock();
-						mousePos = imageWindow.getMousePos ();
+						mousePos = imageWindow.getMousePos();
 						displayMutex.unlock();
 
 						mgr.setRectPoint2 (mousePos.x, mousePos.y);

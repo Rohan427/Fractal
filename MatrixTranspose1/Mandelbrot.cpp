@@ -15,9 +15,16 @@ int main (int argc, char* argv[])
 	EventHandler runner = EventHandler();
 	MandelGPU mandelGPU;
 
-	mandelGPU.mandelGPU2();
+	errHdlr.setErrorData (mandelGPU.mandelGPU2(), "", "", REND_OK);
 
-	cout << "Event loop started" << std::endl;
+	if (errHdlr.getStatus() > 0)
+	{
+		cout << "Test failed" << std::endl;
+		return errHdlr.getStatus();
+	}
+	// else start application
+
+	cout << "Event loop starting..." << std::endl;
 	errHdlr = runner.run();
 
 	return errHdlr.getStatus();

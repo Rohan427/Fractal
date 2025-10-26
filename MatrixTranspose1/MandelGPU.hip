@@ -41,42 +41,13 @@ void matrixTransposeCPU (float* output, float* input, const unsigned int width)
   }
 }
 
-__global__ void calcPixels (unsigned int ImageWidth, unsigned int ImageHeight, double Re_factor, double Im_factor, double MaxIm, double MinRe, double* data)
-{
-    int y = blockDim.y * blockIdx.y + threadIdx.y;
-    int x = blockDim.x * blockIdx.x + threadIdx.x;
-
-    //int yIndex = 0;
-    //int xIndex = 0;
-
-
-    //if (y < ImageHeight)
-    {
-        //yIndex = y * ImageWidth * 5;
-        //data[y * ImageWidth * 5] = y;
-        
-        //if (x < ImageWidth)
-        {
-           // xIndex = (y * ImageWidth * 5) + (x * 5);
-
-            // Set x, , y, and n
-            data[(y * ImageWidth * 5) + (x * 5)] = x;
-            data[(y * ImageWidth * 5) + (x * 5) + 1] = y;
-            data[(y * ImageWidth * 5) + (x * 5) + 2] = 0;
-
-            // Calc c_im
-            data[(y * ImageWidth * 5) + (x * 5) + 3] = MaxIm - y * Im_factor;
-
-            // Calc c_re
-            data[(y * ImageWidth * 5) + (x * 5) + 4] = MinRe + x * Re_factor;
-        }
-    }
-}
-
 __global__ void testPoint (double max, double* hostBuffer, int numPixels)
 {
 	int pixel = blockDim.x * blockIdx.x + threadIdx.x;
+
+    // Pointer to pixel in hostBuffer to modify for this thread
     Mandel::gpuPixel* data = (Mandel::gpuPixel *)&hostBuffer[pixel * 5];
+
 	int count = 0;
 	bool extra = false;
 	double Z_re2;
@@ -134,7 +105,7 @@ __global__ void testPoint (double max, double* hostBuffer, int numPixels)
 
 int MandelGPU::testPoints (double *hostBuffer, double max, int numPixels)
 {
-    std::cout << "Begin computing points" << std::endl;
+//    std::cout << "Begin computing points" << std::endl;
 
     dim3 dimGrid (2048, 1, 1); // 2048 blocks
     dim3 dimBlock (1024, 1, 1); // 1024 threads per block
@@ -144,24 +115,109 @@ int MandelGPU::testPoints (double *hostBuffer, double max, int numPixels)
     HIP_CHECK (hipGetLastError());
     HIP_CHECK (hipDeviceSynchronize());
 
-    std::cout << "Points computed" << std::endl;
+//    std::cout << "Points computed" << std::endl;
 
     return 0;
 }
 
+__global__ void simpleColor (double* hostBuffer, Uint32* pixelBuffer, Uint8* palette, int size, double max)
+{
+	int pixel = blockDim.x * blockIdx.x + threadIdx.x;
+
+    // Pointer to pixel data in hostBuffer to calculate from this thread
+    Mandel::gpuPixel* data = (Mandel::gpuPixel *)&hostBuffer[pixel * 5];
+
+    // Pointer to pixel color to calculate
+    Uint32* finalPixel = &pixelBuffer[pixel];
+
+    int index = 0;
+	double f;
+	double i;
+
+	if (data->n < max)
+	{
+		/*
+		* m = max iterations
+		* n = number of iterations
+		* y = percent max iterations for pixel
+		* c = colors per palette
+		* d = palettes per max iterations
+		* t = total colors for pixel
+		* p = total d for the pixel
+		* i = index
+		*
+		* d = m/c
+		* y = n/m
+		* p = y * d		= (n/m) * (m/c)
+		* t = p * c     = c((n/m) * (m/c))
+		* i = mod (t/c) = mod ((c((n/m) * (m/c)))/c)
+		*
+		* modf (((m/c) * (n/m)) * c, &index)
+		*/
+
+		//index = static_cast<int> (floor ((fmod (params.n, params.cycles) / params.palette->size()) * (params.palette->size() - 1)));
+		f = modf ((double)((max / size) * (data->n / max)), &i);
+		f = modf (f * size, &i);
+
+		// Colors are stored as an object containing RBG values
+		index = (int)i * sizeof (Mandel::palettePoint);
+
+		// Final color is stored in the frame buffer as a 32-bit RGBA value
+		*finalPixel = (Uint32)(palette[index] << 24) | (palette[index + 1] << 16) | (palette[index + 2] << 8) | 255;
+	}
+	else
+	{ // In the set, color black
+		finalPixel = 0;
+	}
+}
+
+int MandelGPU::calcColors (double* hostBuffer, Uint32* pixelBuffer, Uint8* palette, int size, double max, int numPixels)
+{
+//    std::cout << "Begin computing colors" << std::endl;
+
+    dim3 dimGrid (2048, 1, 1); // 2048 blocks
+    dim3 dimBlock (1024, 1, 1); // 1024 threads per block
+
+    simpleColor<<<dimGrid, dimBlock, 0, 0>>> (hostBuffer, pixelBuffer, palette, size, max);
+
+    HIP_CHECK (hipGetLastError());
+    HIP_CHECK (hipDeviceSynchronize());
+
+//    std::cout << "Colors computed" << std::endl;
+
+    return 0;
+}
+
+__global__ void calcPixels (unsigned int ImageWidth, unsigned int ImageHeight, double Re_factor, double Im_factor, double MaxIm, double MinRe, double* data)
+{
+    int y = blockDim.y * blockIdx.y + threadIdx.y;
+    int x = blockDim.x * blockIdx.x + threadIdx.x;
+
+    // Set x, , y, and n
+    data[(y * ImageWidth * 5) + (x * 5)] = x;
+    data[(y * ImageWidth * 5) + (x * 5) + 1] = y;
+    data[(y * ImageWidth * 5) + (x * 5) + 2] = 0;
+
+    // Calc c_im
+    data[(y * ImageWidth * 5) + (x * 5) + 3] = MaxIm - y * Im_factor;
+
+    // Calc c_re
+    data[(y * ImageWidth * 5) + (x * 5) + 4] = MinRe + x * Re_factor;
+}
+
 int MandelGPU::mandelGPU (unsigned int ImageWidth, unsigned int ImageHeight, double Re_factor, double Im_factor, double MaxIm, double MinRe, double* hostBuffer)
 {
-    std::cout << "Initialize GPU buffer..." << std::endl;
+//    std::cout << "Initialize GPU buffer..." << std::endl;
     
     dim3 dimGrid (64, 32, 1); // 2048 blocks
     dim3 dimBlock (32, 32, 1); // 1024 threads per block
 
-    std::cout << "Parameters" << std::endl;
-    printf ("hostBuffer: %p\n", (void *)hostBuffer);
-    std::cout << "Re_factor: " << Re_factor << std::endl;
-    std::cout << "Im_factor: " << Im_factor << std::endl;
-    std::cout << "MaxIm: " << MaxIm << std::endl;
-    std::cout << "MinRe: " << MinRe << std::endl;
+//    std::cout << "Parameters" << std::endl;
+//    printf ("hostBuffer: %p\n", (void *)hostBuffer);
+//    std::cout << "Re_factor: " << Re_factor << std::endl;
+//    std::cout << "Im_factor: " << Im_factor << std::endl;
+//    std::cout << "MaxIm: " << MaxIm << std::endl;
+//    std::cout << "MinRe: " << MinRe << std::endl;
 
     calcPixels<<<dimGrid, dimBlock, 0, 0>>> (ImageWidth, ImageHeight, Re_factor, Im_factor, MaxIm, MinRe, hostBuffer);
 
@@ -169,7 +225,7 @@ int MandelGPU::mandelGPU (unsigned int ImageWidth, unsigned int ImageHeight, dou
 
     HIP_CHECK (hipDeviceSynchronize());
 
-    std::cout << "GPU buffer init complete" << std::endl;
+//    std::cout << "GPU buffer init complete" << std::endl;
 
     return 0;
 }
@@ -178,6 +234,7 @@ int MandelGPU::mandelGPU2()
 {
   hipDeviceProp_t devProp;
   HIP_CHECK (hipGetDeviceProperties(&devProp, 0));
+  std::cout << "Starting system validation..." << std::endl;
   std::cout << "Device name " << std::string (devProp.name) << std::endl;
   const uint32_t WIDTH = 64;
   const uint32_t NUM = WIDTH * WIDTH; // 4096
@@ -199,10 +256,12 @@ int MandelGPU::mandelGPU2()
   float* gpuMatrix = 0;
   float* gpuTransposeMatrix = 0;
 
+  std::cout << "GPU initialization..." << std::endl;
   // Allocate the memory on device side
   HIP_CHECK (hipMalloc ((void**)&gpuMatrix, NUM * sizeof (float)));
   HIP_CHECK (hipMalloc ((void**)&gpuTransposeMatrix, NUM * sizeof (float)));
 
+  std::cout << "GPU memory transfer to GPU..." << std::endl;
   // Memory transfer from host to device
   HIP_CHECK (hipMemcpy (gpuMatrix, Matrix, NUM * sizeof (float), hipMemcpyHostToDevice));
 
@@ -214,9 +273,11 @@ int MandelGPU::mandelGPU2()
   dim3 dimGrid (GRID_X, GRID_Y); // 256, 256 (65,536)
   dim3 dimBlock (THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y, THREADS_PER_BLOCK_Z); // 4, 4, 1 (16)
 
+  std::cout << "GPU kernel testing..." << std::endl;
   // Lauching kernel from host
   matrixTranspose<<<dimGrid, dimBlock, 0, 0>>> (gpuTransposeMatrix, gpuMatrix, WIDTH);
 
+  std::cout << "GPU transfer to host..." << std::endl;
   // Memory transfer from device to host
   HIP_CHECK (hipMemcpy (TransposeMatrix, gpuTransposeMatrix, NUM * sizeof(float), hipMemcpyDeviceToHost));
 
@@ -238,13 +299,15 @@ int MandelGPU::mandelGPU2()
 
   if (errors != 0)
   {
-    printf ("FAILED: %d errors\n", errors);
+    printf ("\nFAILED: %d errors\n", errors);
   }
   else
   {
-    printf ("PASSED!\n");
+    printf ("\n*******\nPASSED!\n*******\n");
   }
 
+
+  std::cout << "Free resources..." << std::endl;
   // Free the resources on device side
   HIP_CHECK (hipFree(gpuMatrix));
   HIP_CHECK (hipFree(gpuTransposeMatrix));
@@ -253,5 +316,7 @@ int MandelGPU::mandelGPU2()
   free (Matrix);
   free (TransposeMatrix);
   free (cpuTransposeMatrix);
+
+  std::cout << "System validation complete" << std::endl;
   return errors;
 }

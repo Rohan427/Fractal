@@ -9,17 +9,17 @@ void ErrorHandler::setErrorData (int status, std::string msg, std::string detail
 	rendStatus = lrendStatus;
 }
 
-int ErrorHandler::getStatus ()
+int ErrorHandler::getStatus()
 {
 	return m_status;
 }
 
-std::string ErrorHandler::getMsg ()
+std::string ErrorHandler::getMsg()
 {
 	return m_msg;
 }
 
-std::string ErrorHandler::getDetail ()
+std::string ErrorHandler::getDetail()
 {
 	return m_detail;
 }
@@ -29,7 +29,7 @@ void ErrorHandler::setRendStatus (int status)
 	rendStatus = status;
 }
 
-int ErrorHandler::getRenderStatus ()
+int ErrorHandler::getRenderStatus()
 {
 	return rendStatus;
 }

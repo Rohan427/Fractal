@@ -35,7 +35,7 @@ ErrorHandler Window::createWindow (int x, int y)
 					  x,
 					  y,
 					  SDL_WINDOW_SHOWN
-	) == nullptr
+					 ) == nullptr
 		)
 	{
 		m_window.getError().setErrorData (ERR_WININIT, ERR_WINCREATE, SDL_GetError (), REND_ERR);
@@ -318,4 +318,9 @@ bool Window::isWindowUpdate()
 int Window::initMenu()
 {
 	return m_window.initMenu();
+}
+
+ErrorHandler Window::updateFrame (const Uint32* pixels)
+{
+	return m_window.updateFramebuffer (pixels);
 }

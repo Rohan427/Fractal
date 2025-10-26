@@ -90,6 +90,8 @@ const std::string ERR_PLOTFAIL = {"Failed to plot"};
 const std::string ERR_SETCOLOR = {"Failed to set color"};
 const std::string ERR_SETCLR = {"Failed to clear renderer"};
 const std::string ERR_SETRSTCLR = {"Failed to reset color"};
+const std::string ERR_FRAMEBUFFER = {"Failed to update framebuffer"};
+const std::string ERR_FRAMECOPY = {"Failed to copy framebuffer"};
 const std::string ERR_NONE = {"/n"};
 
 extern int availableThreads;

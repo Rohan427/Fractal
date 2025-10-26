@@ -15,7 +15,7 @@ ErrorHandler WindowRef::initWindow (Uint32 flags)
 {
 	if (SDL_Init (SDL_INIT_VIDEO) < 0)
 	{
-		m_errHdlr.setErrorData (ERR_VIDERR, ERR_VIDINIT, SDL_GetError (), REND_ERR);
+		m_errHdlr.setErrorData (ERR_VIDERR, ERR_VIDINIT, SDL_GetError(), REND_ERR);
 	}
 	else
 	{
@@ -29,6 +29,9 @@ void* WindowRef::createWindow (const char* title,
 							   int x, int y, int w,
 							   int h, Uint32 flags)
 {
+	mHeight = h;
+	mWidth = w;
+
 	m_window = SDL_CreateWindow (title, x, y, w, h, flags);
 
 	if (m_window != nullptr)
@@ -116,7 +119,7 @@ ErrorHandler WindowRef::plotPoint (unsigned x, unsigned y, unsigned color)
 	else if (SDL_SetRenderDrawColor (m_renderer, red, green, blue, SDL_ALPHA_OPAQUE) != 0)
 	{
 		std::cout << "DEBUG: failed to set color" << std::endl;
-		m_errHdlr.setErrorData (ERR_PLOT, ERR_SETCOLOR, SDL_GetError (), REND_ERR);
+		m_errHdlr.setErrorData (ERR_PLOT, ERR_SETCOLOR, SDL_GetError(), REND_ERR);
 	}
 	else
 	{
@@ -124,7 +127,7 @@ ErrorHandler WindowRef::plotPoint (unsigned x, unsigned y, unsigned color)
 		if (SDL_RenderDrawPoint (m_renderer, x, y) != 0)
 		{
 			std::cout << "DEBUG: failed to draw point" << std::endl;
-			m_errHdlr.setErrorData (ERR_PLOT, ERR_PLOTFAIL, SDL_GetError (), REND_ERR);
+			m_errHdlr.setErrorData (ERR_PLOT, ERR_PLOTFAIL, SDL_GetError(), REND_ERR);
 		}
 	}
 
@@ -144,7 +147,7 @@ ErrorHandler WindowRef::plotPoint (unsigned x, unsigned y, Uint8 red, Uint8 gree
 	else if (SDL_SetRenderDrawColor (m_renderer, red, green, blue, alpha) != 0)
 	{
 		std::cout << "DEBUG: failed to set color" << std::endl;
-		m_errHdlr.setErrorData (ERR_PLOT, ERR_SETCOLOR, SDL_GetError (), REND_ERR);
+		m_errHdlr.setErrorData (ERR_PLOT, ERR_SETCOLOR, SDL_GetError(), REND_ERR);
 	}
 	else
 	{
@@ -152,14 +155,14 @@ ErrorHandler WindowRef::plotPoint (unsigned x, unsigned y, Uint8 red, Uint8 gree
 		if (SDL_RenderDrawPoint (m_renderer, x, y) != 0)
 		{
 			std::cout << "DEBUG: failed to draw point" << std::endl;
-			m_errHdlr.setErrorData (ERR_PLOT, ERR_PLOTFAIL, SDL_GetError (), REND_ERR);
+			m_errHdlr.setErrorData (ERR_PLOT, ERR_PLOTFAIL, SDL_GetError(), REND_ERR);
 		}
 	}
 
 	return m_errHdlr;
 }
 
-ErrorHandler WindowRef::resetColor ()
+ErrorHandler WindowRef::resetColor()
 {
 	if (m_renderer == nullptr)
 	{
@@ -169,7 +172,7 @@ ErrorHandler WindowRef::resetColor ()
 	else if (SDL_SetRenderDrawColor (m_renderer, previousColor.red, previousColor.green, previousColor.blue, previousColor.alpha) != 0)
 	{
 		std::cout << "DEBUG: failed to reset color" << std::endl;
-		m_errHdlr.setErrorData (ERR_PLOT, ERR_SETRSTCLR, SDL_GetError (), REND_ERR);
+		m_errHdlr.setErrorData (ERR_PLOT, ERR_SETRSTCLR, SDL_GetError(), REND_ERR);
 	}
 	else
 	{
@@ -185,7 +188,7 @@ void WindowRef::setPreviousColor (color_t color)
 	previousColor = color;
 }
 
-ErrorHandler WindowRef::clearToDefault ()
+ErrorHandler WindowRef::clearToDefault()
 {
 	if (m_renderer == nullptr)
 	{
@@ -195,7 +198,7 @@ ErrorHandler WindowRef::clearToDefault ()
 	else if (SDL_SetRenderDrawColor (m_renderer, defaultColor.red, defaultColor.green, defaultColor.blue, defaultColor.alpha) != 0)
 	{
 		std::cout << "DEBUG: failed to clear to defaul color" << std::endl;
-		m_errHdlr.setErrorData (ERR_PLOT, ERR_SETRSTCLR, SDL_GetError (), REND_ERR);
+		m_errHdlr.setErrorData (ERR_PLOT, ERR_SETRSTCLR, SDL_GetError(), REND_ERR);
 	}
 	else
 	{
@@ -206,7 +209,7 @@ ErrorHandler WindowRef::clearToDefault ()
 	return m_errHdlr;
 }
 
-void WindowRef::show ()
+void WindowRef::show()
 {
 	//Draw only if not minimized
 	if (!mMinimized)
@@ -325,54 +328,54 @@ ErrorHandler WindowRef::drawRectangle (int orgX, int orgY, int length, int heigh
 	SDL_RenderDrawLine (m_renderer, startx, starty, endx, endy);
 
 	// show
-	show ();
+	show();
 
-	resetColor ();
+	resetColor();
 
 	return m_errHdlr;
 }
 
-point WindowRef::getMousePos ()
+point WindowRef::getMousePos()
 {
 	SDL_GetMouseState (&mousePos.x, &mousePos.y);
 	return mousePos;
 }
 
-Uint32 WindowRef::getID ()
+Uint32 WindowRef::getID()
 {
 	return mWindowID;
 }
-int WindowRef::getWidth ()
+int WindowRef::getWidth()
 {
 	return mWidth;
 }
 
-int WindowRef::getHeight ()
+int WindowRef::getHeight()
 {
 	return mHeight;
 }
 
-bool WindowRef::getMFocus ()
+bool WindowRef::getMFocus()
 {
 	return mMouseFocus;
 }
 
-bool WindowRef::getKFocus ()
+bool WindowRef::getKFocus()
 {
 	return mKeyboardFocus;
 }
 
-bool WindowRef::getFullScreen ()
+bool WindowRef::getFullScreen()
 {
 	return mFullScreen;
 }
 
-bool WindowRef::getMinimized ()
+bool WindowRef::getMinimized()
 {
 	return mMinimized;
 }
 
-bool WindowRef::getShown ()
+bool WindowRef::getShown()
 {
 	return mShown;
 }
@@ -412,13 +415,13 @@ void WindowRef::setShown (bool show)
 	mShown = show;
 }
 
-void WindowRef::hideWindow ()
+void WindowRef::hideWindow()
 {
 	SDL_HideWindow (m_window);
 	mMinimized = true;
 }
 
-void WindowRef::showWindow ()
+void WindowRef::showWindow()
 {
 	SDL_ShowWindow (m_window);
 	mMinimized = false;
@@ -436,7 +439,7 @@ void WindowRef::focus ()
 	SDL_RaiseWindow (m_window);
 }
 
-int WindowRef::initMenu ()
+int WindowRef::initMenu()
 {
 	int result = 0;
 	SDL_Color color;
@@ -445,7 +448,7 @@ int WindowRef::initMenu ()
 	//std::cout << "Initialize menu" << std::endl;
 
 
-	if (TTF_Init () != 0)
+	if (TTF_Init() != 0)
 	{
 		std::cout << "Failed font init " << std::endl;
 		return -1;
@@ -620,7 +623,40 @@ ErrorHandler WindowRef::output (int rect, const char *text)
 	return m_errHdlr;
 }
 
-bool WindowRef::isUpdateMenu ()
+bool WindowRef::isUpdateMenu()
 {
 	return mUpdateMenu;
+}
+
+ErrorHandler WindowRef::updateFramebuffer (const Uint32* pixels)
+{
+	m_errHdlr.setErrorData (ERR_SUCCESS, ERR_NONE, ERR_OK, REND_OK);
+
+	if (framebuffer == nullptr)
+	{
+		framebuffer = SDL_CreateTexture (m_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
+	}
+	// else buffer already allocated
+
+	if (SDL_UpdateTexture (framebuffer, NULL, pixels, mWidth * sizeof (Uint32)) == ERR_SUCCESS)
+	{
+		if (SDL_RenderClear (m_renderer) == ERR_SUCCESS)
+		{
+			if (SDL_RenderCopy (m_renderer, framebuffer, NULL, NULL) != ERR_SUCCESS)
+			{
+				m_errHdlr.setErrorData (ERR_VIDERR, ERR_FRAMECOPY, SDL_GetError(), REND_ERR);
+			}
+			// else do nothing
+		}
+		else
+		{
+			m_errHdlr.setErrorData (ERR_VIDERR, ERR_SETCLR, SDL_GetError(), REND_ERR);
+		}
+	}
+	else
+	{
+		m_errHdlr.setErrorData (ERR_VIDERR, ERR_FRAMEBUFFER, SDL_GetError(), REND_ERR);
+	}
+
+	return m_errHdlr;
 }

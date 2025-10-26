@@ -20,4 +20,5 @@ class MandelGPU
 	int mandelGPU2();
     int mandelGPU (unsigned int ImageWidth, unsigned int ImageHeight, double Re_factor, double Im_factor, double MaxIm, double MinRe, double* hostBuffer);
     int testPoints (double *hostBuffer, double max, int numPixels);
+    int calcColors (double* hostBuffer, Uint32* pixelBuffer, Uint8* palette, int size, double max, int numPixels);
 };
